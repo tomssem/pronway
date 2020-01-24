@@ -28,7 +28,7 @@ function createPopulationTransitioner(cellTransitioner) {
     // immutable
     // handle centre cells
     for(var i = 1; i < population.length - 1; ++i) {
-      for(var j = 1; j < population.length - 1; ++j) {
+      for(var j = 1; j < population[i].length - 1; ++j) {
         const cell = population.slice(i-1, i+2).map(a => a.slice(j-1, j+2))
         target[i][j] = cellTransitioner(cell);
       }
@@ -100,6 +100,9 @@ export class World extends React.Component {
     this.state.population = [...Array(this.props.height)].map(
       _ => [...Array(this.props.width)].map(
         _ => {return 0}));
+    this.state.buffer = [...Array(this.props.height)].map(
+      _ => [...Array(this.props.width)].map(
+        _ => {return 0}));
     this.transitionPopulation = createPopulationTransitioner(originalRule);
   }
 
@@ -111,8 +114,14 @@ export class World extends React.Component {
     return this.state.population;
   }
 
-  clonePopulation() {
-    return this.state.population.map(arr => arr.slice(0));
+  getBuffer() {
+    return this.state.buffer
+  }
+
+  mapBuffer() {
+    var temp = this.state.buffer;
+    this.setState({buffer: this.state.population});
+    this.setState({population: temp});
   }
 
   setPopulation(population) {
@@ -129,8 +138,8 @@ export class World extends React.Component {
 
       if (this.state.now - this.state.then > this.delay) {
         // create new population
-        var newPopulation = this.transitionPopulation(this.getPopulation(), this.clonePopulation());
-        this.setPopulation(newPopulation);
+        var newPopulation = this.transitionPopulation(this.getPopulation(), this.getBuffer());
+        this.mapBuffer();
         this.setState({then: this.state.now});
       }
 
@@ -148,7 +157,7 @@ export class World extends React.Component {
 
     render () {
       return (
-        <table onClick={this.onClick.bind(this)} style={{overflow: "hidden", position: "absolute", top: 0, bottom: 0, left: 0, right: 0}} className="worldTable">
+        <table cellpadding="0" cellspacing="0" onClick={this.onClick.bind(this)} style={{height:"100%", overflow: "hidden", position: "absolute", top: 0, bottom: 0, left: 0, right: 0}} className="worldTable">
         <tbody>
         {this.state.population.map((row, rowId) => this.renderRow(row, rowId))}
         </tbody>
