@@ -1,7 +1,7 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 import App from './App';
-import {originalRule} from './World'
+import {originalRule, originalRuleNoCopy} from './World'
 
 test('should return 0 when all cells are dead', function () {
   var cell = Array(3).fill(Array(3).fill(0));
@@ -39,4 +39,10 @@ test('should return 1 when alive and east and west are on', function () {
   expect(result).toBe(1);
 });
 
-
+test('should return 1 when alive and north and south are on no copy', function () {
+  var cell = [[0, 1, 0],
+    [0, 1, 0],
+    [0, 1, 0]];
+  var result = originalRuleNoCopy(cell, 0, 0, 3, 3, 1, 1);
+  expect(result).toBe(1);
+});

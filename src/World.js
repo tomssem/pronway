@@ -23,14 +23,39 @@ export function originalRule(cell) {
   return 0;
 }
 
+export function originalRuleNoCopy(data, startI, startJ, endI, endJ, centreI, centreJ) {
+  var neighbourCount = 0;
+  for(var i = startI; i < endI; ++i) {
+    for(var j = startJ; j < endJ; ++j) {
+      if(i !== centreI || j !== centreJ) {
+        console.log(i + " " + j + " " + endI + " " + endJ);
+        neighbourCount += data[i][j]
+      }
+    }
+  }
+
+  if(neighbourCount > 0) {
+    console.log("lives: " + neighbourCount);
+  }
+
+  const live = data[centreI][centreJ];
+
+  if(live && (neighbourCount === 2 || neighbourCount === 3)) {
+    return 1;
+  } else if (!live && neighbourCount === 3) {
+    return 1;
+  }
+  return 0;
+}
+
 function createPopulationTransitioner(cellTransitioner) {
   function transitionPopulation(population, target, valueGetter=(x=>x), valueSetter=((...args) => args[0] = args[1])) {
     // immutable
     // handle centre cells
     for(var i = 1; i < population.length - 1; ++i) {
       for(var j = 1; j < population[i].length - 1; ++j) {
-        const cell = population.slice(i-1, i+2).map(a => a.slice(j-1, j+2))
-        target[i][j] = cellTransitioner(cell);
+        console.log(i + " " + j);
+        target[i][j] = cellTransitioner(population, i-1, j-1, i+2, j+2, i, j);
       }
     }
 
@@ -104,7 +129,7 @@ export class World extends React.Component {
     this.state.buffer = [...Array(this.props.height)].map(
       _ => [...Array(this.props.width)].map(
         _ => {return 0}));
-    this.transitionPopulation = createPopulationTransitioner(originalRule);
+    this.transitionPopulation = createPopulationTransitioner(originalRuleNoCopy);
   }
 
   componentDidMount() {
