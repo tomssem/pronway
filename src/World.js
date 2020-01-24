@@ -38,6 +38,7 @@ function createPopulationTransitioner(cellTransitioner) {
     if(target.length > 0) {
       // top and bottom
       target[0] = target[0].map(x => 1);
+
       target[target.length-1] = target[target.length - 1].map(x => 1);
 
       if(target[0].length > 1) {
@@ -147,17 +148,13 @@ export class World extends React.Component {
     }
   }
 
-  onClick() {
-    this.setState({done: true});
-  }
-
   renderRow(row, rowId) {
     return <tr> {row.map((cell, cellId) => <Cell width={this.gridWidth} height={this.gridHeight} alive={cell}/> )} </tr>
     }
 
     render () {
       return (
-        <table cellpadding="0" cellspacing="0" onClick={this.onClick.bind(this)} style={{height:"100%", overflow: "hidden", position: "absolute", top: 0, bottom: 0, left: 0, right: 0}} className="worldTable">
+        <table cellpadding="0" cellspacing="0" style={{height:"100%", overflow: "hidden", position: "absolute", top: 0, bottom: 0, left: 0, right: 0}} className="worldTable">
         <tbody>
         {this.state.population.map((row, rowId) => this.renderRow(row, rowId))}
         </tbody>
