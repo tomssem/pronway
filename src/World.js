@@ -106,7 +106,7 @@ function scaleImageData(imageData, scale, ctx) {
   return scaled;
 }
 
-function byteArrayRenderer(gridHeight, gridWidth, renderHeight, renderWidth, ctx) {
+function byteArrayRenderer(gridHeight, gridWidth, ctx) {
   var buffer = new Uint8ClampedArray(gridWidth * gridHeight * 4);
   var idata = ctx.createImageData(gridWidth, gridHeight);
   function convert(i, j, population) {
@@ -133,11 +133,9 @@ function byteArrayRenderer(gridHeight, gridWidth, renderHeight, renderWidth, ctx
 
     idata.data.set(buffer);
 
-    const scaledData = scaleImageData(idata, renderHeight / gridHeight, ctx);
-
     // update canvas with new data
     // ctx.scale(3, 3);
-    ctx.putImageData(scaledData, 0, 0);
+    ctx.putImageData(idata, 0, 0);
   }
 
   return _f;
@@ -151,9 +149,6 @@ export class World extends React.Component {
     this.saveContext = this.saveContext.bind(this);
     this.updateAnimationState = this.updateAnimationState.bind(this);
     this.postUpdate = this.postUpdate.bind(this);
-
-    this.gridWidth = this.props.renderWidth / this.props.width;
-    this.gridHeight = this.props.renderHeight / this.props.height;
 
     this.delay = 1000 / props.FPS;
 
@@ -203,7 +198,7 @@ export class World extends React.Component {
   saveContext(ctx) {
     this.ctx = ctx;
     this.ctx.fillstyle = "DarkBlue";
-    this.renderer = byteArrayRenderer(this.props.height, this.props.width, this.props.renderHeight, this.props.renderWidth, this.ctx);
+    this.renderer = byteArrayRenderer(this.props.height, this.props.width, this.ctx);
   }
 
   updateAnimationState() {
@@ -213,7 +208,7 @@ export class World extends React.Component {
   }
 
   render () {
-    return <Animation width={this.props.renderWidth} height={this.props.renderHeight} angle={this.state.angle} contextRef={this.saveContext} animationRef={this.updateAnimationState} updateRef={this.postUpdate}></Animation>;
+    return <Animation width={this.props.width} height={this.props.height} angle={this.state.angle} contextRef={this.saveContext} animationRef={this.updateAnimationState} updateRef={this.postUpdate}></Animation>;
   }
 }
 
