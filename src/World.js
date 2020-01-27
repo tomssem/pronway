@@ -21,17 +21,17 @@ export function originalRule(cell) {
   return 0;
 }
 
-export function originalRuleNoCopy(data, startI, startJ, endI, endJ, centreI, centreJ) {
+export function originalRuleNoCopy(data, startI, startJ, endI, endJ, centreI, centreJ, height, width) {
   var neighbourCount = 0;
   for(var i = startI; i < endI; ++i) {
     for(var j = startJ; j < endJ; ++j) {
       if(i !== centreI || j !== centreJ) {
-        neighbourCount += data[i][j]
+        neighbourCount += data[i * width * 4 + j*4]
       }
     }
   }
 
-  const live = data[centreI][centreJ];
+  const live = data[centreI * width * 4 + centreJ*4];
 
   if(live && (neighbourCount === 2 || neighbourCount === 3)) {
     return 1;
@@ -41,66 +41,36 @@ export function originalRuleNoCopy(data, startI, startJ, endI, endJ, centreI, ce
   return 0;
 }
 
-function addEdges(target) {
-  if(target.length > 0) {
-    // top and bottom
-    target[0] = target[0].map(x => 1);
-
-    target[target.length-1] = target[target.length - 1].map(x => 1);
-
-    if(target[0].length > 1) {
-      target.map(row => {
-        row[0] = 1;
-        row[target[0].length - 1] = 1;
-      });
-    }
+function addEdges(target, height, width) {
+  // top and bottom
+  for(var i = 0; i < width; ++i) {
+    target[i * 4] = 1;
+    target[width * 4 * (height - 1) + (i * 4)] = 1;
+  }
+  // left and right
+  for(i = 0; i < height; ++i) {
+    target[i * width * 4] = 1;
+    target[(1 + i) * width * 4 - 4] = 1;
   }
 }
 
 function createPopulationTransitioner(cellTransitioner) {
-  function transitionPopulation(population, target, valueGetter=(x=>x), valueSetter=((...args) => args[0] = args[1])) {
+  function transitionPopulation(population, target, height, width) {
     // immutable
     // handle centre cells
-    for(var i = 1; i < population.length - 1; ++i) {
-      for(var j = 1; j < population[i].length - 1; ++j) {
-        target[i][j] = cellTransitioner(population, i-1, j-1, i+2, j+2, i, j);
+    for(var i = 1; i < height - 1; ++i) {
+      for(var j = 1; j < width - 1; ++j) {
+        target[i * width * 4 + j * 4] = cellTransitioner(population, i-1, j-1, i+2, j+2, i, j, height, width);
       }
     }
 
     // just make edges alive for now
-    addEdges(target);
+    addEdges(target, height, width);
 
     return target;
   }
 
   return transitionPopulation
-}
-
-class Cell extends React.Component {
-  constructor (props) {
-    super(props);
-    this.state = {alive: 0};
-  }
-
-  kill() {
-    this.setState({alive: 0});
-  }
-
-  bringToLife() {
-    this.setState({alive: 1});
-  }
-
-  isAlive() {
-    return this.state.alive;
-  }
-
-  getColor() {
-    return this.props.alive === 1 ? "FloralWhite" : "DarkBlue";
-  }
-
-  render () {
-    return <td style={{background:this.getColor(), width:this.props.width, height:this.props.height}} />
-  };
 }
 
 function differentIndices(x, y) {
@@ -109,44 +79,68 @@ function differentIndices(x, y) {
   return x.map((row, i) => row.map((element, j) => element == y[i][j] ? null : [i, j])).flat().filter(x => x)
 };
 
+function scaleImageData(imageData, scale, ctx) {
+  var scaled = ctx.createImageData(imageData.width * scale, imageData.height * scale);
 
-function createRenderer(gridHeight, gridWidth, renderHeight, renderWidth, ctx) {
-  var oldPopulation = undefined;
-  function renderSquare(i, j, value) {
-    ctx.fillStyle = value ? "FloralWhite" : "DarkBlue";
-    const x = i * gridWidth;
-    const y = j * gridHeight;
-    ctx.fillRect(x, y, gridWidth, gridHeight);
-  }
-  ctx.fillStyle = "DarkBlue";
-  ctx.fillRect(0, 0, renderWidth, renderHeight);
-
-  function f(population) {
-    // background of darkblue
-    if(oldPopulation) {
-      var indicesToUpdate = differentIndices(population, oldPopulation);
-      function a(x) {
-        [i, j] = x;
-        renderSquare(i, j, population[i][j]);
-      }
-      indicesToUpdate.forEach(arg => {
-        [i, j] = arg;
-        renderSquare(i, j, population[i][j])
-      });
-      indicesToUpdate.forEach(a);
-    } else {
-      // first time through, just draw the whole thing
-      for(var i = 0; i < gridHeight; ++i) {
-        for(var j = 0; j < gridWidth; ++j) {
-          renderSquare(i, j, population[i][j]);
+  for(var row = 0; row < imageData.height; row++) {
+    for(var col = 0; col < imageData.width; col++) {
+      var sourcePixel = [
+        imageData.data[(row * imageData.width + col) * 4 + 0],
+        imageData.data[(row * imageData.width + col) * 4 + 1],
+        imageData.data[(row * imageData.width + col) * 4 + 2],
+        imageData.data[(row * imageData.width + col) * 4 + 3]
+      ];
+      for(var y = 0; y < scale; y++) {
+        var destRow = row * scale + y;
+        for(var x = 0; x < scale; x++) {
+          var destCol = col * scale + x;
+          for(var i = 0; i < 4; i++) {
+            scaled.data[(destRow * scaled.width + destCol) * 4 + i] =
+              sourcePixel[i];
+          }
         }
       }
     }
-
-    oldPopulation = [...population];
   }
 
-  return f;
+  return scaled;
+}
+
+function byteArrayRenderer(gridHeight, gridWidth, renderHeight, renderWidth, ctx) {
+  var buffer = new Uint8ClampedArray(gridWidth * gridHeight * 4);
+  var idata = ctx.createImageData(gridWidth, gridHeight);
+  function convert(i, j, population) {
+    if(population[i * gridWidth * 4 + j*4]) {
+      // turn on to coral
+      buffer[i * gridWidth * 4 + j*4] = 255;
+      buffer[i * gridWidth * 4 + j*4 + 1] = 127;
+      buffer[i * gridWidth * 4 + j*4 + 2] = 80;
+      buffer[i * gridWidth * 4 + j*4 + 3] = 255;
+    } else {
+      // turn off to complement of coral
+      buffer[i * gridWidth * 4 + j*4] = 79;
+      buffer[i * gridWidth * 4 + j*4 + 1] = 208;
+      buffer[i * gridWidth * 4 + j*4 + 2] = 255;
+      buffer[i * gridWidth * 4 + j*4 + 3] = 255;
+    }
+  }
+  function _f(population) {
+    for(var i = 0; i < gridHeight; ++i) {
+      for(var j = 0; j < gridWidth; ++j) {
+        convert(i, j, population);
+      }
+    }
+
+    idata.data.set(buffer);
+
+    const scaledData = scaleImageData(idata, renderHeight / gridHeight, ctx);
+
+    // update canvas with new data
+    // ctx.scale(3, 3);
+    ctx.putImageData(scaledData, 0, 0);
+  }
+
+  return _f;
 }
 
 
@@ -170,12 +164,8 @@ export class World extends React.Component {
 
     this.state.cellsToProcess = [];
 
-    this.state.population = [...Array(this.props.height)].map(
-      _ => [...Array(this.props.width)].map(
-        _ => {return 0}));
-    this.state.buffer = [...Array(this.props.height)].map(
-      _ => [...Array(this.props.width)].map(
-        _ => {return 0}));
+    this.state.population = new Uint8ClampedArray(this.props.height * this.props.width * 4);
+    this.state.buffer = new Uint8ClampedArray(this.props.height * this.props.width * 4);
     this.transitionPopulation = createPopulationTransitioner(originalRuleNoCopy);
   }
 
@@ -199,7 +189,7 @@ export class World extends React.Component {
 
       if (this.state.now - this.state.then > this.delay) {
         // create new population
-        var newPopulation = this.transitionPopulation(this.getPopulation(), this.getBuffer());
+        var newPopulation = this.transitionPopulation(this.getPopulation(), this.getBuffer(), this.props.height, this.props.width);
         this.mapBuffer();
         this.setState({then: this.state.now});
       }
@@ -209,11 +199,11 @@ export class World extends React.Component {
   postUpdate() {
     this.renderer(this.state.population);
   }
-  
+
   saveContext(ctx) {
     this.ctx = ctx;
     this.ctx.fillstyle = "DarkBlue";
-    this.renderer = createRenderer(this.gridHeight, this.gridWidth, this.props.renderHeight, this.props.renderWidth, this.ctx);
+    this.renderer = byteArrayRenderer(this.props.height, this.props.width, this.props.renderHeight, this.props.renderWidth, this.ctx);
   }
 
   updateAnimationState() {
@@ -233,15 +223,15 @@ export class Animation extends React.Component {
 
     this.transitionPopulation = createPopulationTransitioner(originalRuleNoCopy);
   }
-  
+
   componentDidMount() {
     this.rAF = requestAnimationFrame(this.props.animationRef);
   }
-  
+
   componentWillUnmount() {
     cancelAnimationFrame(this.rAF);
   }
-  
+
   render() {
     return <Canvas width={this.props.width} height={this.props.height} angle={this.props.angle} contextRef={this.props.contextRef} updateRef={this.props.updateRef} />
   }
@@ -252,7 +242,7 @@ class Canvas extends React.Component {
     super(props);
     this.saveContext = this.saveContext.bind(this);
   }
-  
+
   saveContext(ctx) {
     this.ctx = ctx;
   }
@@ -260,7 +250,7 @@ class Canvas extends React.Component {
   componentDidUpdate() {
     this.props.updateRef();
   }
-  
+
   render() {
     return <PureCanvas width={this.props.width} height={this.props.height} contextRef={this.props.contextRef}></PureCanvas>;
   }
@@ -268,10 +258,10 @@ class Canvas extends React.Component {
 
 class PureCanvas extends React.Component {
   shouldComponentUpdate() { return false; }
-  
+
   render() {
     return (
-      <canvas width="300" height="300" 
+      <canvas width={this.props.width} height={this.props.height} 
         ref={node => node ? this.props.contextRef(node.getContext('2d')) : null}
       />
     )

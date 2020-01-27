@@ -6,7 +6,7 @@ function App() {
   return (
     <div style={{overflow: "hidden"}} className="App">
       <header className="App-header">
-        <World renderWidth={300} renderHeight={300} width={500} height={500} FPS={24}></World>
+        <World renderWidth={1000} renderHeight={1000} width={1000} height={1000} FPS={10}></World>
       </header>
     </div>
   );
