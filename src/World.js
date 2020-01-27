@@ -48,6 +48,22 @@ export function originalRuleNoCopy(data, startI, startJ, endI, endJ, centreI, ce
   return 0;
 }
 
+function addEdges(target) {
+  if(target.length > 0) {
+    // top and bottom
+    target[0] = target[0].map(x => 1);
+
+    target[target.length-1] = target[target.length - 1].map(x => 1);
+
+    if(target[0].length > 1) {
+      target.map(row => {
+        row[0] = 1;
+        row[target[0].length - 1] = 1;
+      });
+    }
+  }
+}
+
 function createPopulationTransitioner(cellTransitioner) {
   function transitionPopulation(population, target, valueGetter=(x=>x), valueSetter=((...args) => args[0] = args[1])) {
     // immutable
@@ -60,19 +76,7 @@ function createPopulationTransitioner(cellTransitioner) {
     }
 
     // just make edges alive for now
-    if(target.length > 0) {
-      // top and bottom
-      target[0] = target[0].map(x => 1);
-
-      target[target.length-1] = target[target.length - 1].map(x => 1);
-
-      if(target[0].length > 1) {
-        target.map(row => {
-          row[0] = 1;
-          row[target[0].length - 1] = 1;
-        });
-      }
-    }
+    addEdges(target);
 
     return target;
   }
@@ -123,6 +127,8 @@ export class World extends React.Component {
     this.state.then = Date.now()
     this.state.now = this.state.then;
 
+    this.state.cellsToProcess = [];
+
     this.state.population = [...Array(this.props.height)].map(
       _ => [...Array(this.props.width)].map(
         _ => {return 0}));
@@ -130,6 +136,11 @@ export class World extends React.Component {
       _ => [...Array(this.props.width)].map(
         _ => {return 0}));
     this.transitionPopulation = createPopulationTransitioner(originalRuleNoCopy);
+  }
+
+  initialPopulation() {
+    addEdges(this.state.target);
+    this.mapBuffer()
   }
 
   componentDidMount() {
