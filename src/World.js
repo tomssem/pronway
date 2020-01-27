@@ -1,6 +1,4 @@
 import React from 'react'
-import Table from 'react-table'
-import assert from 'assert'
 
 export function originalRule(cell) {
   // cell is a 3 by 3 cell
@@ -28,14 +26,9 @@ export function originalRuleNoCopy(data, startI, startJ, endI, endJ, centreI, ce
   for(var i = startI; i < endI; ++i) {
     for(var j = startJ; j < endJ; ++j) {
       if(i !== centreI || j !== centreJ) {
-        console.log(i + " " + j + " " + endI + " " + endJ);
         neighbourCount += data[i][j]
       }
     }
-  }
-
-  if(neighbourCount > 0) {
-    console.log("lives: " + neighbourCount);
   }
 
   const live = data[centreI][centreJ];
@@ -70,7 +63,6 @@ function createPopulationTransitioner(cellTransitioner) {
     // handle centre cells
     for(var i = 1; i < population.length - 1; ++i) {
       for(var j = 1; j < population[i].length - 1; ++j) {
-        console.log(i + " " + j);
         target[i][j] = cellTransitioner(population, i-1, j-1, i+2, j+2, i, j);
       }
     }
@@ -107,7 +99,6 @@ class Cell extends React.Component {
   }
 
   render () {
-    // return  <Rectangle width={this.props.width} height={this.props.height} fill={{color:this.getColor()}} />
     return <td style={{background:this.getColor(), width:this.props.width, height:this.props.height}} />
   };
 }
@@ -117,12 +108,17 @@ export class World extends React.Component {
     super(props);
     const renderWidth = window.innerWidth;
     const renderHeight = window.innerHeight;
+
+    this.saveContext = this.saveContext.bind(this);
+    this.updateAnimationState = this.updateAnimationState.bind(this);
+    this.postUpdate = this.postUpdate.bind(this);
+
     this.gridWidth = renderWidth / this.props.width;
     this.gridHeight = renderHeight / this.props.height;
 
     this.delay = 1000 / props.FPS;
 
-    this.state = {};
+    this.state = { angle: 0 };
 
     this.state.then = Date.now()
     this.state.now = this.state.then;
@@ -136,15 +132,6 @@ export class World extends React.Component {
       _ => [...Array(this.props.width)].map(
         _ => {return 0}));
     this.transitionPopulation = createPopulationTransitioner(originalRuleNoCopy);
-  }
-
-  initialPopulation() {
-    addEdges(this.state.target);
-    this.mapBuffer()
-  }
-
-  componentDidMount() {
-    this.animationID = window.requestAnimationFrame(() => this.update());
   }
 
   getPopulation() {
@@ -161,14 +148,6 @@ export class World extends React.Component {
     this.setState({population: temp});
   }
 
-  setPopulation(population) {
-    this.setState((state, props) => {
-      assert(population.length === state.population.length);
-      population.forEach((row, i) => assert(row.length === state.population[i].length));
-      state.population = population;
-    });
-  }
-
   update() {
     if(!this.state.done) {
       this.setState({now: Date.now()});
@@ -179,24 +158,84 @@ export class World extends React.Component {
         this.mapBuffer();
         this.setState({then: this.state.now});
       }
-
-      this.animationID = window.requestAnimationFrame(() => this.update());
     }
   }
 
-  renderRow(row, rowId) {
-    return <tr> {row.map((cell, cellId) => <Cell width={this.gridWidth} height={this.gridHeight} alive={cell}/> )} </tr>
-    }
-
-    render () {
-      return (
-        <table cellpadding="0" cellspacing="0" style={{height:"100%", overflow: "hidden", position: "absolute", top: 0, bottom: 0, left: 0, right: 0}} className="worldTable">
-        <tbody>
-        {this.state.population.map((row, rowId) => this.renderRow(row, rowId))}
-        </tbody>
-        </table>
-      );
-    }
+  postUpdate() {
+    const width = this.ctx.canvas.width;
+    const height = this.ctx.canvas.height;
+    this.ctx.save();
+    this.ctx.beginPath();
+    this.ctx.clearRect(0, 0, width, height);
+    this.ctx.translate(width/2, height/2 );
+    this.ctx.rotate(this.state.angle * Math.PI / 180);
+    this.ctx.fillStyle = '#4397AC';
+    this.ctx.fillRect(-width/4, -height/4, width/2, height/2);
+    this.ctx.restore();
+  }
+  
+  saveContext(ctx) {
+    this.ctx = ctx;
   }
 
-  export default World;
+  updateAnimationState() {
+    this.update();
+    this.setState(prevState => ({ angle: prevState.angle + 1 }));
+    this.rAF = requestAnimationFrame(this.updateAnimationState);
+  }
+
+  render () {
+    return <Animation angle={this.state.angle} contextRef={this.saveContext} animationRef={this.updateAnimationState} updateRef={this.postUpdate}></Animation>;
+  }
+}
+
+export class Animation extends React.Component {
+  constructor(props) {
+    super(props);
+
+    this.transitionPopulation = createPopulationTransitioner(originalRuleNoCopy);
+  }
+  
+  componentDidMount() {
+    this.rAF = requestAnimationFrame(this.props.animationRef);
+  }
+  
+  componentWillUnmount() {
+    cancelAnimationFrame(this.rAF);
+  }
+  
+  render() {
+    return <Canvas angle={this.props.angle} contextRef={this.props.contextRef} updateRef={this.props.updateRef} />
+  }
+}
+
+class Canvas extends React.Component {
+  constructor(props) {
+    super(props);
+    this.saveContext = this.saveContext.bind(this);
+  }
+  
+  saveContext(ctx) {
+    this.ctx = ctx;
+  }
+
+  componentDidUpdate() {
+    this.props.updateRef();
+  }
+  
+  render() {
+    return <PureCanvas contextRef={this.props.contextRef}></PureCanvas>;
+  }
+}
+
+class PureCanvas extends React.Component {
+  shouldComponentUpdate() { return false; }
+  
+  render() {
+    return (
+      <canvas width="300" height="300" 
+        ref={node => node ? this.props.contextRef(node.getContext('2d')) : null}
+      />
+    )
+  }
+}
