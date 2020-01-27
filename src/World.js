@@ -103,18 +103,63 @@ class Cell extends React.Component {
   };
 }
 
+function differentIndices(x, y) {
+  // get the indices of the elements in 2d arrays x and y that are different
+  // returns a list of tuples
+  return x.map((row, i) => row.map((element, j) => element == y[i][j] ? null : [i, j])).flat().filter(x => x)
+};
+
+
+function createRenderer(gridHeight, gridWidth, renderHeight, renderWidth, ctx) {
+  var oldPopulation = undefined;
+  function renderSquare(i, j, value) {
+    ctx.fillStyle = value ? "FloralWhite" : "DarkBlue";
+    const x = i * gridWidth;
+    const y = j * gridHeight;
+    ctx.fillRect(x, y, gridWidth, gridHeight);
+  }
+  ctx.fillStyle = "DarkBlue";
+  ctx.fillRect(0, 0, renderWidth, renderHeight);
+
+  function f(population) {
+    // background of darkblue
+    if(oldPopulation) {
+      var indicesToUpdate = differentIndices(population, oldPopulation);
+      function a(x) {
+        [i, j] = x;
+        renderSquare(i, j, population[i][j]);
+      }
+      indicesToUpdate.forEach(arg => {
+        [i, j] = arg;
+        renderSquare(i, j, population[i][j])
+      });
+      indicesToUpdate.forEach(a);
+    } else {
+      // first time through, just draw the whole thing
+      for(var i = 0; i < gridHeight; ++i) {
+        for(var j = 0; j < gridWidth; ++j) {
+          renderSquare(i, j, population[i][j]);
+        }
+      }
+    }
+
+    oldPopulation = [...population];
+  }
+
+  return f;
+}
+
+
 export class World extends React.Component {
   constructor(props) {
     super(props);
-    const renderWidth = window.innerWidth;
-    const renderHeight = window.innerHeight;
 
     this.saveContext = this.saveContext.bind(this);
     this.updateAnimationState = this.updateAnimationState.bind(this);
     this.postUpdate = this.postUpdate.bind(this);
 
-    this.gridWidth = renderWidth / this.props.width;
-    this.gridHeight = renderHeight / this.props.height;
+    this.gridWidth = this.props.renderWidth / this.props.width;
+    this.gridHeight = this.props.renderHeight / this.props.height;
 
     this.delay = 1000 / props.FPS;
 
@@ -162,20 +207,13 @@ export class World extends React.Component {
   }
 
   postUpdate() {
-    const width = this.ctx.canvas.width;
-    const height = this.ctx.canvas.height;
-    this.ctx.save();
-    this.ctx.beginPath();
-    this.ctx.clearRect(0, 0, width, height);
-    this.ctx.translate(width/2, height/2 );
-    this.ctx.rotate(this.state.angle * Math.PI / 180);
-    this.ctx.fillStyle = '#4397AC';
-    this.ctx.fillRect(-width/4, -height/4, width/2, height/2);
-    this.ctx.restore();
+    this.renderer(this.state.population);
   }
   
   saveContext(ctx) {
     this.ctx = ctx;
+    this.ctx.fillstyle = "DarkBlue";
+    this.renderer = createRenderer(this.gridHeight, this.gridWidth, this.props.renderHeight, this.props.renderWidth, this.ctx);
   }
 
   updateAnimationState() {
@@ -185,7 +223,7 @@ export class World extends React.Component {
   }
 
   render () {
-    return <Animation angle={this.state.angle} contextRef={this.saveContext} animationRef={this.updateAnimationState} updateRef={this.postUpdate}></Animation>;
+    return <Animation width={this.props.renderWidth} height={this.props.renderHeight} angle={this.state.angle} contextRef={this.saveContext} animationRef={this.updateAnimationState} updateRef={this.postUpdate}></Animation>;
   }
 }
 
@@ -205,7 +243,7 @@ export class Animation extends React.Component {
   }
   
   render() {
-    return <Canvas angle={this.props.angle} contextRef={this.props.contextRef} updateRef={this.props.updateRef} />
+    return <Canvas width={this.props.width} height={this.props.height} angle={this.props.angle} contextRef={this.props.contextRef} updateRef={this.props.updateRef} />
   }
 }
 
@@ -224,7 +262,7 @@ class Canvas extends React.Component {
   }
   
   render() {
-    return <PureCanvas contextRef={this.props.contextRef}></PureCanvas>;
+    return <PureCanvas width={this.props.width} height={this.props.height} contextRef={this.props.contextRef}></PureCanvas>;
   }
 }
 
