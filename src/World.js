@@ -59,8 +59,8 @@ function applyTransitionsToPopulation(transitions, population, height, width, ta
   transitions.map((f) => f(population, height, width, target));
 };
 
-function scaleImageData(imageData, scale, ctx) {
-  var scaled = ctx.createImageData(imageData.width * scale, imageData.height * scale);
+function scaleImageData(imageData, horizontalScale, verticalScale, ctx) {
+  var scaled = ctx.createImageData(imageData.width * horizontalScale, imageData.height * verticalScale);
 
   for(var row = 0; row < imageData.height; row++) {
     for(var col = 0; col < imageData.width; col++) {
@@ -70,14 +70,14 @@ function scaleImageData(imageData, scale, ctx) {
         imageData.data[(row * imageData.width + col) * 4 + 2],
         imageData.data[(row * imageData.width + col) * 4 + 3]
       ];
-      for(var y = 0; y < scale; y++) {
-        var destRow = row * scale + y;
-        for(var x = 0; x < scale; x++) {
-          var destCol = col * scale + x;
-          for(var i = 0; i < 4; i++) {
-            scaled.data[(destRow * scaled.width + destCol) * 4 + i] =
-              sourcePixel[i];
-          }
+      for(var y = 0; y < verticalScale; y++) {
+        var destRow = (row * horizontalScale + y);
+        for(var x = 0; x < horizontalScale; x++) {
+          var destIndex = (destRow * scaled.width + (col * verticalScale + x)) * 4;
+          scaled.data[destIndex] = sourcePixel[0];
+          scaled.data[destIndex + 1] = sourcePixel[1];
+          scaled.data[destIndex + 2] = sourcePixel[2];
+          scaled.data[destIndex + 3] = sourcePixel[3];
         }
       }
     }
@@ -86,7 +86,7 @@ function scaleImageData(imageData, scale, ctx) {
   return scaled;
 }
 
-function byteArrayRenderer(gridHeight, gridWidth, ctx) {
+function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx) {
   var buffer = new Uint8ClampedArray(gridWidth * gridHeight * 4);
   var idata = ctx.createImageData(gridWidth, gridHeight);
   function convert(baseIndex, population) {
@@ -112,8 +112,10 @@ function byteArrayRenderer(gridHeight, gridWidth, ctx) {
 
     idata.data.set(buffer);
 
+    const scaledData = scaleImageData(idata, canvasWidth / gridWidth, canvasHeight / gridHeight, ctx);
+
     // update canvas with new data
-    ctx.putImageData(idata, 0, 0);
+    ctx.putImageData(scaledData, 0, 0);
   }
 
   return _f;
@@ -137,8 +139,8 @@ export class World extends React.Component {
 
     this.state.cellsToProcess = [];
 
-    this.state.population = new Uint8ClampedArray(this.props.height * this.props.width * 4);
-    this.state.buffer = new Uint8ClampedArray(this.props.height * this.props.width * 4);
+    this.state.population = new Uint8ClampedArray(this.props.worldHeight * this.props.worldWidth * 4);
+    this.state.buffer = new Uint8ClampedArray(this.props.worldHeight * this.props.worldWidth * 4);
     this.transitionPopulation = fp.curry(applyTransitionsToPopulation)([fp.curry(applyRuleToPopulation)(originalRuleNoCopy), addEdges]);
   }
 
@@ -162,7 +164,7 @@ export class World extends React.Component {
 
       if (this.state.now - this.state.then > this.delay) {
         // create new population
-        this.transitionPopulation(this.getPopulation(), this.props.height, this.props.width, this.getBuffer());
+        this.transitionPopulation(this.getPopulation(), this.props.worldHeight, this.props.worldWidth, this.getBuffer());
         this.mapBuffer();
         this.setState({then: this.state.now});
       }
@@ -176,7 +178,7 @@ export class World extends React.Component {
   saveContext(ctx) {
     this.ctx = ctx;
     this.ctx.fillstyle = "DarkBlue";
-    this.renderer = byteArrayRenderer(this.props.height, this.props.width, this.ctx);
+    this.renderer = byteArrayRenderer(this.props.height, this.props.width, this.props.worldHeight, this.props.worldWidth, this.ctx);
   }
 
   updateAnimationState() {
