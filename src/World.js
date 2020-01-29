@@ -125,6 +125,8 @@ export class OpenGL extends React.Component {
   constructor(props) {
     super(props);
 
+    this.state = {}
+
     this.animate = this.animate.bind(this);
     this.draw = this.draw.bind(this);
     this.gameCanvas = React.createElement('div');
@@ -144,6 +146,12 @@ export class OpenGL extends React.Component {
     logo.x = this.width / 2;
     // Make sure the center point of the image is at its center, instead of the default top left
     logo.anchor.set(0.5);
+
+    var shaderCode = document.getElementById("shader").innerHTML
+    //Create our Pixi filter using our custom shader code
+    var simpleShader = new PIXI.Filter('',shaderCode);
+    //Apply it to our object
+    logo.filters = [simpleShader]
 
     // Add it to the screen
     this.app.stage.addChild(logo);
