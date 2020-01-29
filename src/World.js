@@ -131,25 +131,63 @@ uniform highp vec4 outputFrame;
 varying highp vec2 vTextureCoord;
 uniform sampler2D uSampler;
 
+vec2 fromUV(vec2 uv) {
+  return uv * outputFrame.zw / inputPixel.xy;
+}
+
 vec2 getUV(vec2 coord) {
 	return coord * inputPixel.xy / outputFrame.zw;
 }
 
-void main(void) {
-  vec2 uv = getUV(vTextureCoord);
-  gl_FragColor = texture2D(uSampler, vTextureCoord);
-
-  if(uv.x <= 1.0 / width || uv.x >= 1.0 - (1.0 / width)) {
+void drawBorder(vec2 pixelPos) {
+  if(pixelPos.x <= 1.0 / width || pixelPos.x >= 1.0 - (1.0 / width)) {
 		gl_FragColor.r = 1.0;
 		gl_FragColor.g = 0.0;
 		gl_FragColor.b = 0.0;
   }
 
-  if(uv.y <= 1.0 / height || uv.y >= 1.0 - (1.0 / height)) {
+  if(pixelPos.y <= 1.0 / height || pixelPos.y >= 1.0 - (1.0 / height)) {
 		gl_FragColor.r = 1.0;
 		gl_FragColor.g = 0.0;
 		gl_FragColor.b = 0.0;
 	}
+}
+
+void blur(vec2 pixelPos) {
+  if(!(pixelPos.x <= 1.0 / width || pixelPos.x >= 1.0 - (1.0 / width))
+        && !(pixelPos.y <= 1.0 / height || pixelPos.y >= 1.0 - (1.0 / height))) {
+    vec4 sum = vec4(0.0, 0.0, 0.0, 0.0);
+    float up = pixelPos.y - (1.0 / height)* outputFrame.w / inputPixel.y;
+    float down = pixelPos.y + (1.0 / height)* outputFrame.w / inputPixel.y;
+    float left = pixelPos.x - (1.0 / width)* outputFrame.z / inputPixel.x;
+    float right = pixelPos.x + (1.0 / width)* outputFrame.z / inputPixel.x;
+
+    float pixelUp = pixelPos.y - (1.0 / height);
+    float pixelDown = pixelPos.y + (1.0 / height);
+    float pixelLeft = pixelPos.x - (1.0 / width);
+    float pixelRight = pixelPos.x + (1.0 / width);
+
+    sum += texture2D(uSampler, fromUV(pixelPos));
+    sum += texture2D(uSampler, fromUV(vec2(pixelPos.x, pixelUp)));   // north
+    sum += texture2D(uSampler, fromUV(vec2(pixelPos.x, pixelDown)));   // south
+    sum += texture2D(uSampler, fromUV(vec2(pixelLeft, pixelPos.y)));   // west
+    sum += texture2D(uSampler, fromUV(vec2(pixelRight, pixelPos.y)));   // east
+    sum += texture2D(uSampler, fromUV(vec2(pixelLeft, pixelUp)));   // north-west
+    sum += texture2D(uSampler, fromUV(vec2(pixelRight, pixelUp)));   // north-east
+    sum += texture2D(uSampler, fromUV(vec2(pixelLeft, pixelDown)));   // south-west
+    sum += texture2D(uSampler, fromUV(vec2(pixelRight, pixelDown)));   // south-east
+
+    gl_FragColor = sum / 9.0;
+  }
+}
+
+void main(void) {
+  vec2 uv = getUV(vTextureCoord);
+  // gl_FragColor = texture2D(uSampler, vTextureCoord);
+
+  drawBorder(uv);
+
+  blur(uv);
 }
 `
 
