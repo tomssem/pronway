@@ -59,17 +59,17 @@ function applyTransitionsToPopulation(transitions, population, height, width, ta
   transitions.map((f) => f(population, height, width, target));
 };
 
-function scaleImageData(imageData, originalWidth, originalHeight, horizontalScale, verticalScale, ctx) {
+function scaleImageData(originalBuffer, originalWidth, originalHeight, horizontalScale, verticalScale, ctx) {
   var scaled = ctx.createImageData(originalWidth * horizontalScale, originalHeight * verticalScale);
   const scaledWidth = originalWidth * horizontalScale;
 
   for(var row = 0; row < originalHeight; row++) {
     for(var col = 0; col < originalWidth; col++) {
       var sourcePixel = [
-        imageData.data[(row * originalWidth + col) * 4 + 0],
-        imageData.data[(row * originalWidth + col) * 4 + 1],
-        imageData.data[(row * originalWidth + col) * 4 + 2],
-        imageData.data[(row * originalWidth + col) * 4 + 3]
+        originalBuffer[(row * originalWidth + col) * 4 + 0],
+        originalBuffer[(row * originalWidth + col) * 4 + 1],
+        originalBuffer[(row * originalWidth + col) * 4 + 2],
+        originalBuffer[(row * originalWidth + col) * 4 + 3]
       ];
       for(var y = 0; y < verticalScale; y++) {
         var destRow = (row * horizontalScale + y);
@@ -92,7 +92,6 @@ function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx
   var verticalScale = canvasHeight / gridHeight;
   var buffer = new Uint8ClampedArray(gridWidth * gridHeight * 4);
   var scaledBuffer = new Uint8ClampedArray(canvasHeight * canvasWidth * 4);
-  var idata = ctx.createImageData(gridWidth, gridHeight);
   function convert(baseIndex, population) {
     if(population[baseIndex]) {
       // turn on to coral
@@ -114,9 +113,7 @@ function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx
       convert(4*i, population);
     }
 
-    idata.data.set(buffer);
-
-    const scaledData = scaleImageData(idata, gridWidth, gridHeight, horizontalScale, verticalScale, ctx);
+    const scaledData = scaleImageData(buffer, gridWidth, gridHeight, horizontalScale, verticalScale, ctx);
 
     // update canvas with new data
     ctx.putImageData(scaledData, 0, 0);
