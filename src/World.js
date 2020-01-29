@@ -59,8 +59,7 @@ function applyTransitionsToPopulation(transitions, population, height, width, ta
   transitions.map((f) => f(population, height, width, target));
 };
 
-function scaleImageData(originalBuffer, originalWidth, originalHeight, horizontalScale, verticalScale, ctx) {
-  var scaled = ctx.createImageData(originalWidth * horizontalScale, originalHeight * verticalScale);
+function scaleImageData(originalBuffer, targetBuffer, originalWidth, originalHeight, horizontalScale, verticalScale, ctx) {
   const scaledWidth = originalWidth * horizontalScale;
 
   for(var row = 0; row < originalHeight; row++) {
@@ -75,23 +74,21 @@ function scaleImageData(originalBuffer, originalWidth, originalHeight, horizonta
         var destRow = (row * horizontalScale + y);
         for(var x = 0; x < horizontalScale; x++) {
           var destIndex = (destRow * scaledWidth + (col * verticalScale + x)) * 4;
-          scaled.data[destIndex] = sourcePixel[0];
-          scaled.data[destIndex + 1] = sourcePixel[1];
-          scaled.data[destIndex + 2] = sourcePixel[2];
-          scaled.data[destIndex + 3] = sourcePixel[3];
+          targetBuffer[destIndex] = sourcePixel[0];
+          targetBuffer[destIndex + 1] = sourcePixel[1];
+          targetBuffer[destIndex + 2] = sourcePixel[2];
+          targetBuffer[destIndex + 3] = sourcePixel[3];
         }
       }
     }
   }
-
-  return scaled;
 }
 
 function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx) {
   var horizontalScale = canvasWidth / gridWidth;
   var verticalScale = canvasHeight / gridHeight;
   var buffer = new Uint8ClampedArray(gridWidth * gridHeight * 4);
-  var scaledBuffer = new Uint8ClampedArray(canvasHeight * canvasWidth * 4);
+  var imageData = ctx.createImageData(canvasWidth, canvasHeight);
   function convert(baseIndex, population) {
     if(population[baseIndex]) {
       // turn on to coral
@@ -113,10 +110,11 @@ function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx
       convert(4*i, population);
     }
 
-    const scaledData = scaleImageData(buffer, gridWidth, gridHeight, horizontalScale, verticalScale, ctx);
+    scaleImageData(buffer, imageData.data, gridWidth, gridHeight, horizontalScale, verticalScale, ctx);
+    // imageData.data.set(scaledBuffer);
 
     // update canvas with new data
-    ctx.putImageData(scaledData, 0, 0);
+    ctx.putImageData(imageData, 0, 0);
   }
 
   return _f;
