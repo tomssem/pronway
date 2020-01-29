@@ -87,7 +87,10 @@ function scaleImageData(imageData, horizontalScale, verticalScale, ctx) {
 }
 
 function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx) {
+  var horizontalScale = canvasWidth / gridWidth;
+  var verticalScale = canvasHeight / gridHeight;
   var buffer = new Uint8ClampedArray(gridWidth * gridHeight * 4);
+  var scaledBuffer = new Uint8ClampedArray(canvasHeight * canvasWidth * 4);
   var idata = ctx.createImageData(gridWidth, gridHeight);
   function convert(baseIndex, population) {
     if(population[baseIndex]) {
@@ -112,7 +115,7 @@ function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx
 
     idata.data.set(buffer);
 
-    const scaledData = scaleImageData(idata, canvasWidth / gridWidth, canvasHeight / gridHeight, ctx);
+    const scaledData = scaleImageData(idata, horizontalScale, verticalScale, ctx);
 
     // update canvas with new data
     ctx.putImageData(scaledData, 0, 0);
