@@ -59,21 +59,22 @@ function applyTransitionsToPopulation(transitions, population, height, width, ta
   transitions.map((f) => f(population, height, width, target));
 };
 
-function scaleImageData(imageData, horizontalScale, verticalScale, ctx) {
-  var scaled = ctx.createImageData(imageData.width * horizontalScale, imageData.height * verticalScale);
+function scaleImageData(imageData, originalWidth, originalHeight, horizontalScale, verticalScale, ctx) {
+  var scaled = ctx.createImageData(originalWidth * horizontalScale, originalHeight * verticalScale);
+  const scaledWidth = originalWidth * horizontalScale;
 
-  for(var row = 0; row < imageData.height; row++) {
-    for(var col = 0; col < imageData.width; col++) {
+  for(var row = 0; row < originalHeight; row++) {
+    for(var col = 0; col < originalWidth; col++) {
       var sourcePixel = [
-        imageData.data[(row * imageData.width + col) * 4 + 0],
-        imageData.data[(row * imageData.width + col) * 4 + 1],
-        imageData.data[(row * imageData.width + col) * 4 + 2],
-        imageData.data[(row * imageData.width + col) * 4 + 3]
+        imageData.data[(row * originalWidth + col) * 4 + 0],
+        imageData.data[(row * originalWidth + col) * 4 + 1],
+        imageData.data[(row * originalWidth + col) * 4 + 2],
+        imageData.data[(row * originalWidth + col) * 4 + 3]
       ];
       for(var y = 0; y < verticalScale; y++) {
         var destRow = (row * horizontalScale + y);
         for(var x = 0; x < horizontalScale; x++) {
-          var destIndex = (destRow * scaled.width + (col * verticalScale + x)) * 4;
+          var destIndex = (destRow * scaledWidth + (col * verticalScale + x)) * 4;
           scaled.data[destIndex] = sourcePixel[0];
           scaled.data[destIndex + 1] = sourcePixel[1];
           scaled.data[destIndex + 2] = sourcePixel[2];
@@ -115,7 +116,7 @@ function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx
 
     idata.data.set(buffer);
 
-    const scaledData = scaleImageData(idata, horizontalScale, verticalScale, ctx);
+    const scaledData = scaleImageData(idata, gridWidth, gridHeight, horizontalScale, verticalScale, ctx);
 
     // update canvas with new data
     ctx.putImageData(scaledData, 0, 0);
