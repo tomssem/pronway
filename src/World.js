@@ -121,6 +121,37 @@ function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx
 	return _f;
 }
 
+const shader = `
+uniform highp vec2 inputPixel;
+uniform highp vec4 outputFrame;
+uniform highp vec2 textureSize;
+varying highp vec2 vTextureCoord;//The coordinates of the current pixel
+uniform sampler2D uSampler;//The image data
+
+vec2 getUV(vec2 coord) {
+	return coord * inputPixel.xy / outputFrame.zw;
+}
+
+void color_edges(vec2 textureOffset) {
+  vec2 coords = textureOffset * textureSize;
+}
+
+void main(void) {
+  vec2 uv = getUV(vTextureCoord);
+  gl_FragColor = texture2D(uSampler, vTextureCoord);
+	if(uv.x <= 0.01) {
+		gl_FragColor.r = 1.0;
+		gl_FragColor.g = 1.0;
+    gl_FragColor.b = 1.0;
+	}
+  if(uv.y <= 0.005) {
+		gl_FragColor.r = 1.0;
+		gl_FragColor.g = 1.0;
+    gl_FragColor.b = 1.0;
+	}
+}
+`
+
 export class OpenGL extends React.Component {
 	constructor(props) {
 		super(props);
@@ -146,27 +177,25 @@ export class OpenGL extends React.Component {
 
 		var logo = new PIXI.Sprite(PIXI.Texture.WHITE);
 		logo.tint = 0xffffff; //Change with the color wanted
-		logo.width = 2000;
-		logo.height = 600;
 
 
 		var logo = PIXI.Sprite.from("https://image.shutterstock.com/image-photo/beautiful-water-drop-on-dandelion-260nw-789676552.jpg");
 
+		logo.width = 100;
+		logo.height = 100;
 		logo.y = this.height / 2;
 		logo.x = this.width / 2;
 		// Make sure the center point of the image is at its center, instead of the default top left
 		logo.anchor.set(0.5);
 
-		var shaderCode = document.getElementById("shader").innerHTML
 		//Create our Pixi filter using our custom shader code
 		var uniforms = {}
-		uniforms.time = {
+		uniforms.textureSize = {
 			type:"v2",
 			value:[logo.width, logo.height]
 		}
-		uniforms.iChannel0 = 0
 
-		var simpleShader = new PIXI.Filter('',shaderCode);
+		var simpleShader = new PIXI.Filter('',shader);
 		//Apply it to our object
 		logo.filters = [simpleShader]
 

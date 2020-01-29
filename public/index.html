@@ -38,7 +38,17 @@ uniform sampler2D uSampler;//The image data
 
 void main(void) {
   gl_FragColor = texture2D(uSampler, vTextureCoord);
-	gl_FragColor.r = vTextureCoord.x;
+
+	if(vTextureCoord.x <= 0.4) {
+		gl_FragColor.r = 1.0;
+		gl_FragColor.g = 1.0;
+		gl_FragColor.b = 1.0;
+	}
+	if(vTextureCoord.y <= 0.5) {
+		gl_FragColor.r = 1.0;
+		gl_FragColor.g = 1.0;
+		gl_FragColor.b = 1.0;
+	}
 }
 
 
