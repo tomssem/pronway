@@ -1,5 +1,6 @@
 import React from 'react'
 import fp from 'lodash/fp';
+import * as PIXI from 'pixi.js'
 
 function countNeighbourhood(data, startI, startJ, endI, endJ, centreI, centreJ, height, width) {
   // the number of "on" cells in the neighbourhood centred at [centreI, centreJ]
@@ -118,6 +119,66 @@ function byteArrayRenderer(canvasHeight, canvasWidth, gridHeight, gridWidth, ctx
   }
 
   return _f;
+}
+
+export class OpenGL extends React.Component {
+  constructor(props) {
+    super(props);
+
+    this.animate = this.animate.bind(this);
+    this.draw = this.draw.bind(this);
+    this.gameCanvas = React.createElement('div');
+    this.width = window.innerWidth;
+    this.height = window.innerHeight;
+  }
+
+  animate() {
+    // start the timer for the next animation loop
+    // this is the main render call that makes pixi draw your container and its children.
+    requestAnimationFrame(this.animate);
+  }
+
+  draw() {
+    var logo = PIXI.Sprite.from("https://image.shutterstock.com/image-photo/beautiful-water-drop-on-dandelion-260nw-789676552.jpg");
+    logo.y = this.height / 2;
+    logo.x = this.width / 2;
+    // Make sure the center point of the image is at its center, instead of the default top left
+    logo.anchor.set(0.5);
+
+    // Add it to the screen
+    this.app.stage.addChild(logo);
+
+    requestAnimationFrame(this.animate);
+  }
+
+  /**
+   * After mounting, add the Pixi Renderer to the div and start the Application.
+   */
+  componentDidMount() {
+    this.app = new PIXI.Application({width: this.width, height: this.height});
+    this.stage = new PIXI.Container();
+
+    this.gameCanvas.appendChild(this.app.view);
+
+    this.draw();
+  }
+
+  /**
+   * Stop the Application when unmounting.
+   */
+  componentWillUnmount() {
+    this.app.stop();
+  }
+
+  /**
+   * Simply render the div that will contain the Pixi Renderer.
+   */
+  render() {
+    let component = this;
+    return (
+      <div ref={(thisDiv) => {component.gameCanvas = thisDiv}} />
+    );
+  }
 }
 
 
