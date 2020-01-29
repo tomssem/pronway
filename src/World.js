@@ -1,35 +1,27 @@
 import React from 'react'
+import fp from 'lodash/fp';
 
-export function originalRule(cell) {
-  // cell is a 3 by 3 cell
-  // return 1 if centre square survives, 0 otherwise
-  const live = cell[1][1];
-  var neighbourCount = 0;
-  for(var i = 0; i < 3; ++i) {
-    for(var j = 0; j < 3; ++j) {
-      if(i !== 1 || j !== 1) {
-        neighbourCount += cell[i][j];
-      }
+function countNeighbourhood(data, startI, startJ, endI, endJ, centreI, centreJ, height, width) {
+  // the number of "on" cells in the neighbourhood centred at [centreI, centreJ]
+  var neighbourhoodCount = 0;
+  for(var i = startI; i < endI; ++i) {
+    const rowIndex = i * width * 4;
+    for(var j = startJ; j < endJ; ++j) {
+      neighbourhoodCount += data[rowIndex + j*4];
     }
   }
 
-  if(live && (neighbourCount === 2 || neighbourCount === 3)) {
-    return 1;
-  } else if (!live && neighbourCount === 3) {
-    return 1;
-  }
-  return 0;
+  return neighbourhoodCount;
+}
+
+function countNeighbours(data, startI, startJ, endI, endJ, centreI, centreJ, height, width) {
+  // the number of "on" neighbours of cell [centreI, centreJ]
+  return countNeighbourhood(data, startI, startJ, endI, endJ, centreI, centreJ, height, width) - data[centreI * width * 4 + centreJ*4];
 }
 
 export function originalRuleNoCopy(data, startI, startJ, endI, endJ, centreI, centreJ, height, width) {
-  var neighbourCount = 0;
-  for(var i = startI; i < endI; ++i) {
-    for(var j = startJ; j < endJ; ++j) {
-      if(i !== centreI || j !== centreJ) {
-        neighbourCount += data[i * width * 4 + j*4]
-      }
-    }
-  }
+
+  var neighbourCount = countNeighbours(data, startI, startJ, endI, endJ, centreI, centreJ, height, width);
 
   const live = data[centreI * width * 4 + centreJ*4];
 
@@ -41,7 +33,7 @@ export function originalRuleNoCopy(data, startI, startJ, endI, endJ, centreI, ce
   return 0;
 }
 
-function addEdges(target, height, width) {
+function addEdges(_, height, width, target) {
   // top and bottom
   for(var i = 0; i < width; ++i) {
     target[i * 4] = 1;
@@ -54,29 +46,17 @@ function addEdges(target, height, width) {
   }
 }
 
-function createPopulationTransitioner(cellTransitioner) {
-  function transitionPopulation(population, target, height, width) {
-    // immutable
-    // handle centre cells
-    for(var i = 1; i < height - 1; ++i) {
-      for(var j = 1; j < width - 1; ++j) {
-        target[i * width * 4 + j * 4] = cellTransitioner(population, i-1, j-1, i+2, j+2, i, j, height, width);
-      }
+function applyRuleToPopulation(rule, population, height, width, target) {
+  // Mutates second argument with result of applying rule over population
+  for(var i = 1; i < height - 1; ++i) {
+    for(var j = 1; j < width - 1; ++j) {
+      target[i * width * 4 + j * 4] = rule(population, i-1, j-1, i+2, j+2, i, j, height, width);
     }
-
-    // just make edges alive for now
-    addEdges(target, height, width);
-
-    return target;
   }
-
-  return transitionPopulation
 }
 
-function differentIndices(x, y) {
-  // get the indices of the elements in 2d arrays x and y that are different
-  // returns a list of tuples
-  return x.map((row, i) => row.map((element, j) => element == y[i][j] ? null : [i, j])).flat().filter(x => x)
+function applyTransitionsToPopulation(transitions, population, height, width, target) {
+  transitions.map((f) => f(population, height, width, target));
 };
 
 function scaleImageData(imageData, scale, ctx) {
@@ -110,18 +90,19 @@ function byteArrayRenderer(gridHeight, gridWidth, ctx) {
   var buffer = new Uint8ClampedArray(gridWidth * gridHeight * 4);
   var idata = ctx.createImageData(gridWidth, gridHeight);
   function convert(i, j, population) {
+    const baseIndex = i * gridWidth * 4 + j*4
     if(population[i * gridWidth * 4 + j*4]) {
       // turn on to coral
-      buffer[i * gridWidth * 4 + j*4] = 255;
-      buffer[i * gridWidth * 4 + j*4 + 1] = 127;
-      buffer[i * gridWidth * 4 + j*4 + 2] = 80;
-      buffer[i * gridWidth * 4 + j*4 + 3] = 255;
+      buffer[baseIndex] = 255;
+      buffer[baseIndex + 1] = 127;
+      buffer[baseIndex + 2] = 80;
+      buffer[baseIndex + 3] = 255;
     } else {
       // turn off to complement of coral
-      buffer[i * gridWidth * 4 + j*4] = 79;
-      buffer[i * gridWidth * 4 + j*4 + 1] = 208;
-      buffer[i * gridWidth * 4 + j*4 + 2] = 255;
-      buffer[i * gridWidth * 4 + j*4 + 3] = 255;
+      buffer[baseIndex] = 79;
+      buffer[baseIndex + 1] = 208;
+      buffer[baseIndex + 2] = 255;
+      buffer[baseIndex + 3] = 255;
     }
   }
   function _f(population) {
@@ -134,7 +115,6 @@ function byteArrayRenderer(gridHeight, gridWidth, ctx) {
     idata.data.set(buffer);
 
     // update canvas with new data
-    // ctx.scale(3, 3);
     ctx.putImageData(idata, 0, 0);
   }
 
@@ -161,7 +141,7 @@ export class World extends React.Component {
 
     this.state.population = new Uint8ClampedArray(this.props.height * this.props.width * 4);
     this.state.buffer = new Uint8ClampedArray(this.props.height * this.props.width * 4);
-    this.transitionPopulation = createPopulationTransitioner(originalRuleNoCopy);
+    this.transitionPopulation = fp.curry(applyTransitionsToPopulation)([fp.curry(applyRuleToPopulation)(originalRuleNoCopy), addEdges]);
   }
 
   getPopulation() {
@@ -184,7 +164,7 @@ export class World extends React.Component {
 
       if (this.state.now - this.state.then > this.delay) {
         // create new population
-        var newPopulation = this.transitionPopulation(this.getPopulation(), this.getBuffer(), this.props.height, this.props.width);
+        this.transitionPopulation(this.getPopulation(), this.props.height, this.props.width, this.getBuffer());
         this.mapBuffer();
         this.setState({then: this.state.now});
       }
@@ -213,12 +193,6 @@ export class World extends React.Component {
 }
 
 export class Animation extends React.Component {
-  constructor(props) {
-    super(props);
-
-    this.transitionPopulation = createPopulationTransitioner(originalRuleNoCopy);
-  }
-
   componentDidMount() {
     this.rAF = requestAnimationFrame(this.props.animationRef);
   }
