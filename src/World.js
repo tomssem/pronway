@@ -89,9 +89,8 @@ function scaleImageData(imageData, scale, ctx) {
 function byteArrayRenderer(gridHeight, gridWidth, ctx) {
   var buffer = new Uint8ClampedArray(gridWidth * gridHeight * 4);
   var idata = ctx.createImageData(gridWidth, gridHeight);
-  function convert(i, j, population) {
-    const baseIndex = i * gridWidth * 4 + j*4
-    if(population[i * gridWidth * 4 + j*4]) {
+  function convert(baseIndex, population) {
+    if(population[baseIndex]) {
       // turn on to coral
       buffer[baseIndex] = 255;
       buffer[baseIndex + 1] = 127;
@@ -105,11 +104,10 @@ function byteArrayRenderer(gridHeight, gridWidth, ctx) {
       buffer[baseIndex + 3] = 255;
     }
   }
+  const length = gridWidth * gridWidth;
   function _f(population) {
-    for(var i = 0; i < gridHeight; ++i) {
-      for(var j = 0; j < gridWidth; ++j) {
-        convert(i, j, population);
-      }
+    for(var i = 0; i < length; ++i) {
+      convert(4*i, population);
     }
 
     idata.data.set(buffer);
