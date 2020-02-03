@@ -200,45 +200,51 @@ export class OpenGL extends React.Component {
 		this.animate = this.animate.bind(this);
 		this.draw = this.draw.bind(this);
 		this.gameCanvas = React.createElement('div');
-		this.width = window.innerWidth;
-		this.height = window.innerHeight;
+		this.width = 800;
+		this.height = 600;
+
+    this.num_frames = 0;
 	}
 
 	animate() {
 		// start the timer for the next animation loop
 		// this is the main render call that makes pixi draw your container and its children.
-		requestAnimationFrame(this.animate);
-
+    this.num_frames += 1;
 		this.renderer.render(this.stage);
+
+    console.log(this.renderer.extract.pixels());
+
+    if(this.num_frames < 4) {
+      requestAnimationFrame(this.animate);
+    }
 	}
 
 	draw() {
 
-		var logo = new PIXI.Sprite(PIXI.Texture.WHITE);
-		logo.tint = 0xffffff; //Change with the color wanted
+		this.logo = new PIXI.Sprite(PIXI.Texture.WHITE);
+		this.logo.tint = 0xffffff; //Change with the color wanted
 
 
-		var logo = PIXI.Sprite.from("https://image.shutterstock.com/image-photo/beautiful-water-drop-on-dandelion-260nw-789676552.jpg");
+		this.logo = PIXI.Sprite.from("https://image.shutterstock.com/image-photo/beautiful-water-drop-on-dandelion-260nw-789676552.jpg");
 
-		logo.width = 800;
-		logo.height = 600;
-		logo.y = this.height / 2;
-		logo.x = this.width / 2;
+		this.logo.width = 800;
+		this.logo.height = 600;
+		this.logo.y = this.height / 2;
+		this.logo.x = this.width / 2;
 		// Make sure the center point of the image is at its center, instead of the default top left
-		logo.anchor.set(0.5);
+		this.logo.anchor.set(0.5);
 
 		//Create our Pixi filter using our custom shader code
 
 		var simpleShader = new PIXI.Filter('',shader);
-    simpleShader.uniforms.width = logo.width;
-    simpleShader.uniforms.height = logo.height;
-    console.log(simpleShader.uniforms);
+    simpleShader.uniforms.width = this.logo.width;
+    simpleShader.uniforms.height = this.logo.height;
 		//Apply it to our object
-		logo.filters = [simpleShader]
+		this.logo.filters = [simpleShader]
 
 
 		// Add it to the screen
-		this.stage.addChild(logo);
+		this.stage.addChild(this.logo);
 
 		requestAnimationFrame(this.animate);
 	}
