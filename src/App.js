@@ -1,12 +1,12 @@
 import React from 'react';
 import './App.css';
-import {OpenGL} from './World.js'
+import {WorldGL} from './World.js'
 
 function App() {
   return (
     <div style={{overflow: "hidden"}} className="App">
       <header className="App-header">
-        <OpenGL></OpenGL>
+        <WorldGL worldWidth={100} worldHeight={100} width={1000} height={1000} FPS={10}></WorldGL>
       </header>
     </div>
   );
